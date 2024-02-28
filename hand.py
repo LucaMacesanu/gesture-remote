@@ -41,6 +41,10 @@ def is_dr_strange(xs,ys,norm):
                 return True
     return False
 
+def inverse_exponential_interpolation(x_last, x_target, alpha):
+    # return x_target - (x_target - x_last)**2 * (1-alpha)
+    return x_target - (x_target - x_last) * (1 - alpha)
+
 def smooth_transition(x_last, x_target, alpha):
     """
     Smoothly transition a value towards a target.
@@ -79,6 +83,7 @@ while cap.isOpened():
     # Convert the BGR image to RGB
     image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
     image = cv2.flip(image,1)
+    image = cv2.pyrDown(image)
 
     # Process the image to find hand landmarks
     results = hands.process(image)
@@ -133,22 +138,21 @@ while cap.isOpened():
                 y = map_range(cursor[1]/l_norm,0,3,0,pyautogui.size().height)
 
                 #adjust offsets for more comfortable positioning
-                # x += pyautogui.size().width/4
                 y += pyautogui.size().height/2 
-
-                # constrain to screen size
-                x = np.clip(x,0,pyautogui.size().width)
-                y = np.clip(y,0,pyautogui.size().height)
 
                 # add a dead space of 30 pix
                 if(np.abs(x-x_last) <= 30): x = x_last
                 if(np.abs(y-y_last) <= 30): y = y_last
 
                 # apply smoothing
-                x = smooth_transition(x_last,x,0.15)
-                y = smooth_transition(y_last,y,0.15)
+                x = inverse_exponential_interpolation(x_last,x,0.3)
+                y = inverse_exponential_interpolation(y_last,y,0.3)
 
-                # print("X: ",x, " - Y: ",y)
+                # constrain to screen size
+                x = np.clip(x,0,pyautogui.size().width)
+                y = np.clip(y,0,pyautogui.size().height)
+
+                # Move cursor to location
                 pyautogui.moveTo(x,y)
                 x_last = x
                 y_last = y
@@ -164,55 +168,9 @@ while cap.isOpened():
 
 
 
-    if cv2.waitKey(5) & 0xFF == 27:
+    if cv2.waitKey(1) & 0xFF == 27:
         break
 cap.release()
 cv2.destroyAllWindows()
 
-
-
-# import cv2
-# import mediapipe as mp
-
-# mp_hands = mp.solutions.hands
-# hands = mp_hands.Hands()
-# mp_drawing = mp.solutions.drawing_utils
-
-# cap = cv2.VideoCapture(0)
-
-# while cap.isOpened():
-#     success, image = cap.read()
-#     if not success:
-#         continue
-
-#     # Convert the BGR image to RGB and process it
-#     image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-#     results = hands.process(image)
-
-#     # Convert back to BGR for displaying
-#     image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
-
-#     if results.multi_hand_landmarks:
-#         for hand_idx, hand_landmarks in enumerate(results.multi_hand_landmarks):
-
-#             # Choose a color based on the hand index
-#             color = (0, 255, 0) if hand_idx == 0 else (0, 0, 255)
-
-#             # Draw landmarks and connections
-#             mp_drawing.draw_landmarks(image, hand_landmarks, mp_hands.HAND_CONNECTIONS,
-#                                       mp_drawing.DrawingSpec(color=color, thickness=2, circle_radius=4),
-#                                       mp_drawing.DrawingSpec(color=color, thickness=2))
-
-#             # Optional: Add text to identify the hand
-#             cv2.putText(image, f'Hand {hand_idx + 1}', 
-#                         (10, 30 * (hand_idx + 1)), 
-#                         cv2.FONT_HERSHEY_SIMPLEX, 1, color, 2, cv2.LINE_AA)
-
-#     # Display the image
-#     cv2.imshow('MediaPipe Hands', image)
-#     if cv2.waitKey(5) & 0xFF == 27:
-#         break
-
-# cap.release()
-# cv2.destroyAllWindows()
 
